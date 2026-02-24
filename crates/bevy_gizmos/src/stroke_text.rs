@@ -109,15 +109,10 @@ impl<'a> StrokeTextLayout<'a> {
         layout_size
     }
 
-    /// Returns an iterator over the font strokes for this text layout,
-    /// grouped into polylines of `Vec2` points.
-    pub fn render(&'a self) -> impl Iterator<Item = impl Iterator<Item = Vec2>> + 'a {
-        self.render_colored().map(|(_, stroke)| stroke)
-    }
 
     /// Returns an iterator over the font strokes for this text layout, grouped into polylines
     /// of `Vec2` points, each paired with its color from the text sections.
-    pub fn render_colored(
+    pub fn render(
         &'a self,
     ) -> impl Iterator<Item = (Color, impl Iterator<Item = Vec2> + 'a)> + 'a {
         let mut chars = colored_chars(self.sections);
@@ -254,7 +249,7 @@ where
         let isometry: Isometry3d = isometry.into();
         let layout = SIMPLEX_STROKE_FONT.layout(sections, font_size);
         let layout_anchor = layout.measure() * (vec2(-0.5, 0.5) - anchor);
-        for (color, points) in layout.render_colored() {
+        for (color, points) in layout.render() {
             self.linestrip(
                 points.map(|point| isometry * (layout_anchor + point).extend(0.)),
                 color,
@@ -338,7 +333,7 @@ where
         let isometry: Isometry2d = isometry.into();
         let layout = SIMPLEX_STROKE_FONT.layout(sections, font_size);
         let layout_anchor = layout.measure() * (vec2(-0.5, 0.5) - anchor);
-        for (color, points) in layout.render_colored() {
+        for (color, points) in layout.render() {
             self.linestrip_2d(
                 points.map(|point| isometry * (layout_anchor + point)),
                 color,
