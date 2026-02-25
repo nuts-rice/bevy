@@ -109,12 +109,9 @@ impl<'a> StrokeTextLayout<'a> {
         layout_size
     }
 
-
     /// Returns an iterator over the font strokes for this text layout, grouped into polylines
     /// of `Vec2` points, each paired with its color from the text sections.
-    pub fn render(
-        &'a self,
-    ) -> impl Iterator<Item = (Color, impl Iterator<Item = Vec2> + 'a)> + 'a {
+    pub fn render(&'a self) -> impl Iterator<Item = (Color, impl Iterator<Item = Vec2> + 'a)> + 'a {
         let mut chars = colored_chars(self.sections);
         let mut x = 0.0_f32;
         let mut y = -self.margin_top;
