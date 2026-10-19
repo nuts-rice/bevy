@@ -41,7 +41,15 @@ use crate::{
 
 mod assets;
 mod generate_city;
+mod input;
+mod net;
 mod settings;
+mod stats;
+mod status;
+mod video;
+
+pub const WIDTH: u32 = 1920;
+pub const HEIGHT: u32 = 1080;
 
 #[derive(FromArgs, Resource, Clone)]
 /// Config
@@ -77,6 +85,10 @@ pub struct Args {
     /// maximum range for car LODs
     #[argh(option, default = "80.0")]
     car_lod_max_range: f32,
+
+    /// the relay url
+    #[argh(option, default = "String::from(\"http://localhost:4443/anon\")")]
+    relay: String,
 }
 
 fn main() {
@@ -142,6 +154,8 @@ fn scene() -> impl SceneList {
     }
 }
 
+// This has to be a transform that can be state for every viewer that can be
+// tracked
 fn camera() -> impl Scene {
     bsn! {
         Camera3d
