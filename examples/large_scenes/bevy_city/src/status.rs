@@ -48,4 +48,10 @@ impl StatusPublisher {
             tracing::warn!(%err, "failed to publish status");
         }
     }
+
+    pub fn finish(&mut self) {
+        if let Err(e) = self.producer.finish() {
+            tracing::error!(error = %e, "error when finishing status")
+        }
+    }
 }

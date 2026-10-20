@@ -86,7 +86,7 @@ pub async fn handle_viewers(
                 }
                 let broadcast = match viewer_origin.request_broadcast(&update.prefix).await {
                     Ok(b) => b,
-                    Err(e) => {
+                    Err(_e) => {
                         tracing::warn!(%viewer_id, %scene, "failed to resolve scene");
                         continue;
                     }

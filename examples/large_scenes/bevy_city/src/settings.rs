@@ -40,126 +40,126 @@ impl Default for Settings {
 
 pub fn settings_ui() -> impl Scene {
     bsn! {
-        Node {
-            position_type: PositionType::Absolute,
-            top: px(10),
-            right: px(10),
-            padding: px(8),
-        }
-        ThemeBackgroundColor(feathers::tokens::WINDOW_BG)
-        on(|_: On<PointerOver>, mut free_camera_state: Single<&mut FreeCameraState>| {
-            free_camera_state.enabled = false;
-        })
-        on(|_: On<PointerOut>, mut free_camera_state: Single<&mut FreeCameraState>| {
-            free_camera_state.enabled = true;
-        })
-        Children [
             Node {
-                display: Display::Flex,
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Stretch,
-                justify_content: JustifyContent::Start,
-                row_gap: px(8),
+                position_type: PositionType::Absolute,
+                top: px(10),
+                right: px(10),
+                padding: px(8),
             }
+            ThemeBackgroundColor(feathers::tokens::WINDOW_BG)
+            on(|_: On<PointerOver>, mut free_camera_state: Single<&mut FreeCameraState>| {
+                free_camera_state.enabled = false;
+            })
+            on(|_: On<PointerOut>, mut free_camera_state: Single<&mut FreeCameraState>| {
+                free_camera_state.enabled = true;
+            })
             Children [
-                Text("Settings")
-                --
-                @FeathersCheckbox {
-                    @caption: bsn! { @caption("Simulate Cars") }
+                Node {
+                    display: Display::Flex,
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Stretch,
+                    justify_content: JustifyContent::Start,
+                    row_gap: px(8),
                 }
-                Checked
-                on(checkbox_self_update)
-                on(|change: On<ValueChange<bool>>, mut settings: ResMut<Settings>| {
-                    settings.simulate_cars = change.value;
-                })
-                --
-                @FeathersCheckbox {
-                    @caption: bsn! { @caption("Shadow maps enabled") }
-                }
-                Checked
-                on(checkbox_self_update)
-                on(
-                    |change: On<ValueChange<bool>>,
-                        mut settings: ResMut<Settings>,
-                        mut directional_lights: Query<&mut DirectionalLight>| {
-                        settings.shadow_maps_enabled = change.value;
-                        for mut light in &mut directional_lights {
-                            light.shadow_maps_enabled = change.value;
-
-                        }
+                Children [
+                    Text("Settings")
+                    --
+                    @FeathersCheckbox {
+                        @caption: bsn! { @caption("Simulate Cars") }
                     }
-                )
-                --
-                @FeathersCheckbox {
-                    @caption: bsn! { @caption("Contact shadows enabled") }
-                }
-                Checked
-                on(checkbox_self_update)
-                on(
-                    |change: On<ValueChange<bool>>,
-                        mut settings: ResMut<Settings>,
-                        mut directional_lights: Query<&mut DirectionalLight>| {
-                        settings.contact_shadows_enabled = change.value;
-                        for mut light in &mut directional_lights {
-                            light.contact_shadows_enabled = change.value;
-
-                        }
+                    Checked
+                    on(checkbox_self_update)
+                    on(|change: On<ValueChange<bool>>, mut settings: ResMut<Settings>| {
+                        settings.simulate_cars = change.value;
+                    })
+                    --
+                    @FeathersCheckbox {
+                        @caption: bsn! { @caption("Shadow maps enabled") }
                     }
-                )
-                --
-                @FeathersCheckbox {
-                    @caption: bsn! { @caption("Wireframe Enabled") }
-                }
-                on(checkbox_self_update)
-                on(
-                    |change: On<ValueChange<bool>>,
-                        mut settings: ResMut<Settings>,
-                        mut wireframe_config: ResMut<WireframeConfig>| {
-                        settings.wireframe_enabled = change.value;
-                        wireframe_config.global = change.value;
-                    }
-                )
-                --
-                @FeathersCheckbox {
-                    @caption: bsn! { @caption("CPU culling") }
-                }
-                Checked
-                on(checkbox_self_update)
-                on(
-                    |change: On<ValueChange<bool>>,
-                        mut settings: ResMut<Settings>,
-                        mut commands: Commands,
-                        meshes: Query<Entity, With<Mesh3d>>| {
-                        settings.cpu_culling = change.value;
+                    Checked
+                    on(checkbox_self_update)
+                    on(
+                        |change: On<ValueChange<bool>>,
+                            mut settings: ResMut<Settings>,
+                            mut directional_lights: Query<&mut DirectionalLight>| {
+                            settings.shadow_maps_enabled = change.value;
+                            for mut light in &mut directional_lights {
+                                light.shadow_maps_enabled = change.value;
 
-                        for entity in meshes.iter() {
-                            if settings.cpu_culling {
-                                commands.entity(entity).remove::<NoCpuCulling>();
-                            } else {
-                                commands.entity(entity).insert(NoCpuCulling);
                             }
                         }
+                    )
+                    --
+                    @FeathersCheckbox {
+                        @caption: bsn! { @caption("Contact shadows enabled") }
                     }
-                )
-                --
-                @FeathersButton {
-                    @caption: bsn! { @caption("Regenerate City") }
-                }
-                on(
-                    |_activate: On<Activate>,
-                        mut commands: Commands,
-                        city_root: Single<Entity, With<CityRoot>>,
-                        assets: Res<CityAssets>| {
-                        commands.entity(*city_root).despawn();
+                    Checked
+                    on(checkbox_self_update)
+                    on(
+                        |change: On<ValueChange<bool>>,
+                            mut settings: ResMut<Settings>,
+                            mut directional_lights: Query<&mut DirectionalLight>| {
+                            settings.contact_shadows_enabled = change.value;
+                            for mut light in &mut directional_lights {
+                                light.contact_shadows_enabled = change.value;
 
-                        let mut rng = rand::rng();
-                        let seed = rng.random::<u64>();
-                        info!("new seed: {seed}");
-                        let mut stats = CityStats::default();
-                        spawn_city(&mut commands, &assets, seed, 32, 0.1, &mut stats);
+                            }
+                        }
+                    )
+                    --
+                    @FeathersCheckbox {
+                        @caption: bsn! { @caption("Wireframe Enabled") }
                     }
-                )
+                    on(checkbox_self_update)
+                    on(
+                        |change: On<ValueChange<bool>>,
+                            mut settings: ResMut<Settings>,
+                            mut wireframe_config: ResMut<WireframeConfig>| {
+                            settings.wireframe_enabled = change.value;
+                            wireframe_config.global = change.value;
+                        }
+                    )
+                    --
+                    @FeathersCheckbox {
+                        @caption: bsn! { @caption("CPU culling") }
+                    }
+                    Checked
+                    on(checkbox_self_update)
+                    on(
+                        |change: On<ValueChange<bool>>,
+                            mut settings: ResMut<Settings>,
+                            mut commands: Commands,
+                            meshes: Query<Entity, With<Mesh3d>>| {
+                            settings.cpu_culling = change.value;
+
+                            for entity in meshes.iter() {
+                                if settings.cpu_culling {
+                                    commands.entity(entity).remove::<NoCpuCulling>();
+                                } else {
+                                    commands.entity(entity).insert(NoCpuCulling);
+                                }
+                            }
+                        }
+                    )
+                    --
+                    @FeathersButton {
+                        @caption: bsn! { @caption("Regenerate City") }
+                    }
+                    on(
+                        |_activate: On<Activate>,
+                            mut commands: Commands,
+                            city_root: Single<Entity, With<CityRoot>>,
+                            assets: Res<CityAssets>| {
+                            commands.entity(*city_root).despawn();
+
+                            let mut rng = rand::rng();
+                            let seed = rng.random::<u64>();
+                            info!("new seed: {seed}");
+                            let mut stats = CityStats::default();
+    spawn_city(&mut commands, &assets, Vec3::ZERO, seed, 32, 0.1, &mut stats);
+                        }
+                    )
+                ]
             ]
-        ]
-    }
+        }
 }

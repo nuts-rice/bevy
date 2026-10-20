@@ -7,6 +7,9 @@ use crate::{assets::CityAssets, Car, Road};
 #[derive(Component)]
 pub struct CityRoot;
 
+#[derive(Component, Clone)]
+pub struct GalleryScene(pub u64);
+
 #[derive(Default)]
 pub struct CityStats {
     pub buildings: u32,
@@ -35,6 +38,7 @@ pub struct CityStats {
 pub fn spawn_city(
     commands: &mut Commands,
     assets: &CityAssets,
+    origin: Vec3,
     seed: u64,
     size: u32,
     car_density: f32,
@@ -45,7 +49,12 @@ pub fn spawn_city(
     let noise_scale = 0.025;
 
     commands
-        .spawn((CityRoot, Transform::default(), Visibility::default()))
+        .spawn((
+            CityRoot,
+            GalleryScene(seed),
+            Transform::from_translation(origin),
+            Visibility::default(),
+        ))
         .with_children(|commands| {
             let half_size = size as i32 / 2;
             for x in -half_size..half_size {

@@ -5,14 +5,20 @@
 //! As a result, the complexity is higher than in most examples or benchmarks —
 //! we want to use a large number of features so that pathological paths
 //! are caught during development, rather than by end users.
-
+#![recursion_limit = "256"]
+use crate::{
+    assets::{merge_car_meshes, strip_base_url},
+    generate_city::{spawn_city, CityStats, GalleryScene},
+    net::{drain_viewer_commands, gate_gallery_cameras, GalleryViewers},
+    settings::{settings_ui, Settings},
+};
 use argh::FromArgs;
 use assets::{load_assets, resolve_pending_lods, CityAssets};
 use bevy::{
     anti_alias::taa::TemporalAntiAliasing,
     camera::{
         visibility::{NoCpuCulling, VisibilityRange},
-        Exposure, Hdr,
+        Exposure, Hdr, RenderTarget,
     },
     camera_controller::free_camera::{FreeCamera, FreeCameraPlugin},
     color::palettes::css::WHITE,
@@ -27,16 +33,13 @@ use bevy::{
     },
     post_process::bloom::Bloom,
     prelude::*,
+    render::{
+        gpu_readback::Readback,
+        render_resource::{TextureFormat, TextureUsages},
+    },
     window::{PresentMode, WindowResolution},
     winit::WinitSettings,
     world_serialization::WorldInstanceReady,
-};
-
-use crate::generate_city::spawn_city;
-use crate::{
-    assets::{merge_car_meshes, strip_base_url},
-    generate_city::CityStats,
-    settings::{settings_ui, Settings},
 };
 
 mod assets;
@@ -54,10 +57,6 @@ pub const HEIGHT: u32 = 1080;
 #[derive(FromArgs, Resource, Clone)]
 /// Config
 pub struct Args {
-    /// seed
-    #[argh(option, default = "42")]
-    seed: u64,
-
     /// size
     #[argh(option, default = "30")]
     size: u32,
@@ -89,10 +88,19 @@ pub struct Args {
     /// the relay url
     #[argh(option, default = "String::from(\"http://localhost:4443/anon\")")]
     relay: String,
+
+    /// city seeds
+    #[argh(option)]
+    seeds: Vec<u64>,
 }
 
 fn main() {
-    let args: Args = argh::from_env();
+    let mut args: Args = argh::from_env();
+    if args.seeds.is_empty() {
+        args.seeds.push(67);
+    }
+    let relay = args.relay.parse().expect("invalid --relay URL");
+    let net = net::connect(relay, &args.seeds).expect("failed to start MoQ");
 
     App::new()
         .add_plugins((
@@ -111,9 +119,11 @@ fn main() {
             WireframePlugin::default(),
         ))
         .insert_resource(args.clone())
+        .insert_resource(net)
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(WinitSettings::continuous())
         .init_resource::<Settings>()
+        .init_resource::<GalleryViewers>()
         .insert_resource(UiTheme(create_dark_theme()))
         .insert_resource(WireframeConfig {
             global: false,
@@ -137,8 +147,11 @@ fn main() {
                 (add_no_cpu_culling, on_city_spawned, settings_ui.spawn())
                     .run_if(on_message::<CitySpawned>),
                 resolve_pending_lods,
+                gate_gallery_cameras,
+                drain_viewer_commands,
             ),
         )
+        .add_systems(Last, net::shutdown_net.run_if(on_message::<AppExit>))
         .add_observer(add_no_cpu_culling_on_scene_ready)
         .add_observer(propagate_visibility_range)
         .run();
@@ -359,14 +372,20 @@ fn on_city_assets_ready(
     text.0 = "Spawning city...".into();
 
     let mut stats = CityStats::default();
-    spawn_city(
-        &mut commands,
-        &city_assets,
-        args.seed,
-        args.size,
-        args.car_density,
-        &mut stats,
-    );
+    let pitch = args.size as f32 * 5.5 + 100.;
+    for (i, &seed) in args.seeds.iter().enumerate() {
+        let origin = Vec3::X * pitch * i as f32;
+        spawn_city(
+            &mut commands,
+            &city_assets,
+            origin,
+            seed,
+            args.size,
+            args.car_density,
+            &mut stats,
+        );
+        commands.queue(move |world: &mut World| spawn_gallery_camera(world, seed, origin));
+    }
 
     info!("cars: {}", stats.cars);
     info!("roads: {}", stats.roads);
@@ -390,6 +409,38 @@ fn on_city_spawned(
         return;
     };
     commands.entity(*loading_screen).despawn();
+}
+
+fn spawn_gallery_camera(world: &mut World, seed: u64, origin: Vec3) {
+    let mut image = Image::new_target_texture(WIDTH, HEIGHT, TextureFormat::Rgba8UnormSrgb, None);
+    image.texture_descriptor.usage |= TextureUsages::COPY_SRC;
+    let image = world.resource_mut::<Assets<Image>>().add(image);
+
+    world.spawn((
+        GalleryScene(seed),
+        Camera3d::default(),
+        Hdr,
+        Camera {
+            order: -1,
+            ..default()
+        },
+        RenderTarget::Image(image.clone().into()),
+        Transform::from_translation(origin + Vec3::new(15.0, 10.0, 20.0))
+            .looking_at(origin, Vec3::Y),
+        AtmosphereSettings {
+            aerial_view_lut_max_distance: 1.6e4,
+            ..default()
+        },
+        Exposure::OVERCAST,
+        Bloom::NATURAL,
+        AtmosphereEnvironmentMapLight::default(),
+        Msaa::Off,
+        TemporalAntiAliasing::default(),
+        ContactShadows::default(),
+    ));
+    world
+        .spawn((GalleryScene(seed), Readback::texture(image)))
+        .observe(net::on_gallery_frame);
 }
 
 #[derive(Component)]

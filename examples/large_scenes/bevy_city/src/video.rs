@@ -15,7 +15,7 @@ pub struct VideoEncoder {
     force_keyframe: Arc<AtomicBool>,
     /// Latest encode duration in microseconds.
     encode_duration: Arc<AtomicU64>,
-    _thread: std::thread::JoinHandle<()>,
+    thread: Option<std::thread::JoinHandle<()>>,
 }
 
 enum EncoderMsg {
@@ -24,6 +24,7 @@ enum EncoderMsg {
         timestamp: hang::container::Timestamp,
     },
     Discontinuity,
+    Finish,
 }
 
 impl VideoEncoder {
@@ -68,10 +69,17 @@ impl VideoEncoder {
             demand,
             force_keyframe,
             encode_duration,
-            _thread: thread,
+            thread: Some(thread),
         }
     }
 
+    // finish video track and waits for encoder thread to exit too.
+    pub fn finish(&mut self) {
+        let _ = self.tx.blocking_send(EncoderMsg::Finish);
+        if let Some(thread) = self.thread.take() {
+            let _ = thread.join();
+        }
+    }
     /// Send a frame to the encoder. Non-blocking: drops the frame if the
     /// channel is full (capacity=4) to keep latency low.
     pub fn try_frame(&self, rgba: Bytes, timestamp: hang::container::Timestamp) {
@@ -126,6 +134,7 @@ fn encoder_thread(
                 }
                 continue;
             }
+            EncoderMsg::Finish => break,
         };
         let (rgba, timestamp) = msg;
         let enc = match encoder.as_mut() {
@@ -175,5 +184,8 @@ fn encoder_thread(
             Err(e) => tracing::error!(error = %e, "H.264 encode error"),
         }
         encode_duration.store(start.elapsed().as_micros() as u64, Ordering::Relaxed);
+        if let Err(e) = producer.finish() {
+            tracing::error!(error = %e, "error while finishing video track");
+        }
     }
 }
