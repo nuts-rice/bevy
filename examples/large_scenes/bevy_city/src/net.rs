@@ -1,11 +1,11 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use bevy::prelude::*;
 use moq_mux::catalog;
 use tokio::sync::mpsc;
 use url::Url;
 
-use crate::input::{handle_viewers, Command};
+use crate::input::{handle_viewers, Button, Command};
 use crate::stats::Stats;
 use crate::status::StatusPublisher;
 use crate::video::VideoEncoder;
@@ -16,6 +16,11 @@ use bevy::render::gpu_readback::ReadbackComplete;
 // Buttons pressed per-viewer per-scene
 #[derive(Resource, Default)]
 pub struct GalleryViewers(pub HashMap<u64, HashMap<String, Vec<crate::input::Button>>>);
+
+#[derive(Component)]
+pub struct GalleryOrbit {
+    pub center: Vec3,
+}
 
 pub struct SceneNet {
     pub encoder: VideoEncoder,
@@ -147,6 +152,48 @@ pub fn gate_gallery_cameras(
     }
 }
 
+pub fn move_gallery_cameras(
+    viewers: Res<GalleryViewers>,
+    time: Res<Time>,
+    mut cameras: Query<(&GalleryScene, &GalleryOrbit, &Camera, &mut Transform)>,
+) {
+    const YAW_SPEED: f32 = 1.0;
+    const ZOOM_SPEED: f32 = 0.8;
+    const MIN_DISTANCE: f32 = 10.0;
+    const MAX_DISTANCE: f32 = 400.;
+    let dt = time.delta_secs();
+    for (scene, orbit, camera, mut transform) in &mut cameras {
+        if !camera.is_active {
+            continue;
+        }
+        let Some(state) = viewers.0.get(&scene.0) else {
+            continue;
+        };
+
+        let pressed: HashSet<Button> = state.values().flatten().copied().collect();
+        if pressed.is_empty() {
+            continue;
+        }
+        let mut yaw = 0.0;
+        let mut zoom = 0.0;
+        for button in &pressed {
+            match button {
+                Button::Left => yaw += 1.0,
+                Button::Right => yaw -= 1.0,
+                Button::Up => zoom -= 1.0,
+                Button::Down => zoom += 1.0,
+            }
+        }
+        let mut offset = transform.translation - orbit.center;
+        offset = Quat::from_rotation_y(yaw * YAW_SPEED * dt) * offset;
+        let distance =
+            (offset.length() * (1.0 + zoom * ZOOM_SPEED * dt)).clamp(MIN_DISTANCE, MAX_DISTANCE);
+        offset = offset.normalize_or_zero() * distance;
+        transform.translation = orbit.center + offset;
+        transform.look_at(orbit.center, Vec3::Y);
+    }
+}
+
 pub fn drain_viewer_commands(mut net: ResMut<Net>, mut viewers: ResMut<GalleryViewers>) {
     for (&seed, s) in net.scenes.iter_mut() {
         let state = viewers.0.entry(seed).or_default();
@@ -155,6 +202,9 @@ pub fn drain_viewer_commands(mut net: ResMut<Net>, mut viewers: ResMut<GalleryVi
                 Command::Buttons {
                     buttons, viewer_id, ..
                 } => {
+                    if state.get(&viewer_id) != Some(&buttons) {
+                        tracing::debug!(seed, %viewer_id, ?buttons, "viewer buttons");
+                    }
                     state.insert(viewer_id, buttons);
                 }
                 Command::ViewerLeft { viewer_id } => {

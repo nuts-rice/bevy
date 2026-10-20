@@ -149,6 +149,7 @@ fn main() {
                 resolve_pending_lods,
                 gate_gallery_cameras,
                 drain_viewer_commands,
+                net::move_gallery_cameras.after(drain_viewer_commands),
             ),
         )
         .add_systems(Last, net::shutdown_net.run_if(on_message::<AppExit>))
@@ -418,6 +419,7 @@ fn spawn_gallery_camera(world: &mut World, seed: u64, origin: Vec3) {
 
     world.spawn((
         GalleryScene(seed),
+        net::GalleryOrbit { center: origin },
         Camera3d::default(),
         Hdr,
         Camera {
