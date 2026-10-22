@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MoQCity</title>
+    <style>
+			* { margin: 0; padding: 0; box-sizing: border-box; }
+			body {
+				font-family: system-ui, sans-serif;
+				color-scheme: dark;
+				background: #0a0a0a;
+				color: #e0e0e0;
+				min-height: 100vh;
+				display: flex;
+				flex-direction: column;
+			}
+
+			header {
+				border-bottom: 1px solid #333;
+				padding: 0.75rem 1.5rem;
+				display: flex;
+				align-items: center;
+				gap: 1rem;
+			}
+			header h1 { font-size: 1.1rem; font-weight: 600; color: #8bac0f; }
+
+			.about {
+				max-width: 500px;
+				margin: 1.5rem auto;
+				padding: 0 1.5rem;
+				font-size: 0.75rem;
+				color: #555;
+				line-height: 1.7;
+			}
+			.about p { margin-bottom: 0.5rem; }
+			.about a { color: #8bac0f; text-decoration: none; }
+			.about a:hover { text-decoration: underline; }
+			.about ul { list-style: none; padding: 0; margin: 0; }
+			.about li { padding-left: 1rem; position: relative; }
+			.about li::before { content: "\2022"; color: #8bac0f; position: absolute; left: 0; }
+
+			moq-city { flex: 1; }
+
+			footer {
+				padding: 0.75rem 1.5rem;
+				border-top: 1px solid #333;
+				font-family: monospace;
+				font-size: 0.7rem;
+				color: #555;
+				text-align: center;
+			}
+			footer code {
+				color: #8bac0f;
+			}
+		</style>
+  </head>
+  <body>
+   <header>
+			<h1>MoQCity</h1>
+		</header> 
+    <moq-city></moq-city>
+	<div class="about" id="about">
+			<p>Click a city to observe! Multiple viewers can control the camera and regenerate the city </p>
+			<p>
+				A generic <a href="https://moq.dev">MoQ</a> relay is used for everything:
+			</p>
+			<ul>
+				<li>Discovering online cities and viewers.</li>
+				<li>Transmitting audio/video tracks, metadata, and controls.</li>
+				<li>Pausing encoding when there are no subscribers.</li>
+			</ul>
+		</div>
+    <div id="root"></div>
+    <script type="module" src="./frontend.tsx"></script>
+  </body>
+</html>

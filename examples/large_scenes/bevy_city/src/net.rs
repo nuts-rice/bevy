@@ -141,7 +141,7 @@ pub fn gate_gallery_cameras(
 ) {
     for (scene, mut camera) in &mut cameras {
         let Some(city) = net.scenes.get_mut(&scene.0) else {
-            return;
+            continue;
         };
         let watched = city.encoder.demand.is_used();
         if watched && !city.was_watched {
